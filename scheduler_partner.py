@@ -53,7 +53,7 @@ class PartnerController(object):
     @wsgi.serializers(xml=PartnerTemplate)
     def detail(self, req, body=None):
         print "LIST"
-        return {'partner': {'partner': 'detail'}}
+        return {'scheduler_partner': {'partner': 'detail'}}
 
     @wsgi.serializers(xml=PartnerTemplate)
     def create(self, req, body=None):
