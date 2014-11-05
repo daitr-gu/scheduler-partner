@@ -74,16 +74,13 @@ class PartnerController(object):
 
         ctxt = req.environ['nova.context']
 
-        host = body['host']
-        if host == 'HCMUT':
-            req_from = 'HCMUS'
-        else:
-            req_from = 'HCMUT'
+        partner_name = ctxt['user_name']
+        print "Receive request from %s" % partner_name
         req_flavor = DbAPI.flavor_get(ctxt, body['flavor'])
         req_num_instances = int(body['num_instances'])
 
-        partner = DbAPI.partners_get_by_shortname(ctxt, req_from)
-        pprint(partner)
+        partner = DbAPI.partners_get_by_shortname(ctxt, partner_name)
+
         if not partner:
             return {'scheduler_partner': {'success': 0, 'message': 'You are not our partner! %s' % host}}
 
@@ -100,7 +97,7 @@ class PartnerController(object):
             if ((req_point + satisfied) / float(requested)) > limit_ratio:
                 return {'scheduler_partner': {'success': 0, 'message': 'Limit ratio exceed'}}
 
-        instances = DbAPI.temp_instances_get_by_host(ctxt, req_from)
+        instances = DbAPI.temp_instances_get_by_host(ctxt, partner_name)
         used_cpus = 0
         used_ram = 0
         for instance in instances:
@@ -116,13 +113,13 @@ class PartnerController(object):
 
         if (used_ram + ram_need) <= ram or (used_cpus + cpus_need) <= cpus:
 
-            DbAPI.partners_update(ctxt, req_from, {
+            DbAPI.partners_update(ctxt, partner_name, {
                 'satisfied': req_point + satisfied
             })
 
             for i in range(req_num_instances):
                 DbAPI.temp_instances_create({
-                    'host': req_from,
+                    'host': partner_name,
                     'flavor': req_flavor['id']
                 })
 
