@@ -74,7 +74,7 @@ class PartnerController(object):
 
         ctxt = req.environ['nova.context']
 
-        partner_name = ctxt['user_name']
+        partner_name = ctxt.user_name
         print "Receive request from %s" % partner_name
         req_flavor = DbAPI.flavor_get(ctxt, body['flavor'])
         req_num_instances = int(body['num_instances'])
