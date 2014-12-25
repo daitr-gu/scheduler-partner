@@ -61,7 +61,7 @@ class PartnerController(object):
     def action(self, req, id, body=None):
         context = req.environ['nova.context']
         compute_nodes = self.host_api.compute_node_get_all(context)
-        pprint.pprint(compute_nodes)
+        pprint(compute_nodes)
 
     @wsgi.serializers(xml=PartnerTemplate)
     def provision(self, req, id, body=None):
@@ -73,13 +73,13 @@ class PartnerController(object):
         num_instances = body['num_instances']
         context = req.environ['nova.context']
         compute_nodes = self.host_api.compute_node_get_all(context)
-        pprint.pprint(compute_nodes)
+        pprint(compute_nodes)
 
     @wsgi.serializers(xml=PartnerTemplate)
     def create(self, req, body=None):
         context = req.environ['nova.context']
         compute_nodes = self.host_api.compute_node_get_all(context)
-        pprint.pprint(compute_nodes)
+        pprint(compute_nodes)
 
 
 class Scheduler_partner(extensions.ExtensionDescriptor):
@@ -91,9 +91,11 @@ class Scheduler_partner(extensions.ExtensionDescriptor):
     updated = "2014-10-27T00:00:00+00:00"
 
     def get_resources(self):
+        member_actions = {'estimate': 'POST'}
         resources = []
 
-        res = extensions.ResourceExtension('os-scheduler-partner', PartnerController())
+        res = extensions.ResourceExtension('os-scheduler-partner', PartnerController(),
+                                           member_actions=member_actions)
 
         resources.append(res)
         return resources
