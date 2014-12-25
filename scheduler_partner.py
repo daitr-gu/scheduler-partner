@@ -59,7 +59,9 @@ class PartnerController(object):
 
     @wsgi.serializers(xml=PartnerTemplate)
     def provision(self, req, id, body=None):
-
+        print "PROVISION"
+        return {'scheduler_partner': {'partner': 'provision'}}
+    
     @wsgi.serializers(xml=PartnerTemplate)
     def estimate(self, req, id, body=None):
         num_instances = body['num_instances']
