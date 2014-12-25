@@ -58,6 +58,12 @@ class PartnerController(object):
         return {'scheduler_partner': {'partner': 'detail'}}
 
     @wsgi.serializers(xml=PartnerTemplate)
+    def action(self, req, id, body=None):
+        context = req.environ['nova.context']
+        compute_nodes = self.host_api.compute_node_get_all(context)
+        pprint.pprint(compute_nodes)
+
+    @wsgi.serializers(xml=PartnerTemplate)
     def provision(self, req, id, body=None):
         print "PROVISION"
         return {'scheduler_partner': {'partner': 'provision'}}
