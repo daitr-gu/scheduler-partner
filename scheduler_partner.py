@@ -92,12 +92,20 @@ class PartnerController(object):
         req_memory = flavor.memory_mb * num_instances
 
         partner = DbAPI.partners_get_by_shortname(context, id)
+
+        if not partner:
+            print("This is not my partner")
+            return {'scheduler_partner': {'success': 0, 'message': 'Contact our administrator to become our partner'}}
+
         if not self._is_can_satisfy(partner, flavor, total_cpu, num_instances):
+            print("Out of ratio")
             return {'scheduler_partner': {'success': 0, 'message': 'Out of ratio'}}
 
         if (req_vcpus > usable_cpu) and (req_memory > usable_memory):
+            print("ACCEPTED")
             return {'scheduler_partner': {'success': 1, 'message': 'ACCEPTED'}}
         else:
+            print("Out of resources")
             return {'scheduler_partner': {'success': 0, 'message': 'Out of resources'}}
 
     @wsgi.serializers(xml=PartnerTemplate)
