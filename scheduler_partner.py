@@ -117,12 +117,12 @@ class PartnerController(object):
     def _is_can_satisfy(self, partner, flavor, total_cpu, num_instances):
         requested = partner['requested']
         satisfied = partner['satisfied']
-        ratio = partner['ratio']
+        ratio = partner['limit_ratio']
 
         max_satisfiable = requested / ratio * total_cpu
         can_satisfy = max_satisfiable - satisfied
 
-        return flavor.vcpus * num_instances > can_satisfy
+        return flavor.vcpus * num_instances < can_satisfy
 
 
 class Scheduler_partner(extensions.ExtensionDescriptor):
