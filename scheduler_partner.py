@@ -66,8 +66,20 @@ class PartnerController(object):
 
     @wsgi.serializers(xml=PartnerTemplate)
     def provision(self, req, id, body=None):
-        print "PROVISION"
-        return {'scheduler_partner': {'partner': 'provision'}}
+        flavor_id = body['flavor_id']
+        num_instances = body['num_instances']
+        context = req.environ['nova.context']
+
+        partner = DbAPI.partners_get_by_shortname(context, id)
+        satisfied = partner['satisfied']
+
+        DbAPI.partners_update(context, id, {
+            'satisfied': satisfied + num_instances
+        })
+
+        print("Provisioning %s instances." % num_instances)
+
+        return {'scheduler_partner': {'success': 1}}
 
     @wsgi.serializers(xml=PartnerTemplate)
     def estimate(self, req, id, body=None):
@@ -134,7 +146,7 @@ class Scheduler_partner(extensions.ExtensionDescriptor):
     updated = "2014-10-27T00:00:00+00:00"
 
     def get_resources(self):
-        member_actions = {'estimate': 'POST'}
+        member_actions = {'estimate': 'POST', 'provision': 'POST'}
         resources = []
 
         res = extensions.ResourceExtension('os-scheduler-partner', PartnerController(),
