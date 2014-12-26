@@ -113,7 +113,7 @@ class PartnerController(object):
             print("Out of ratio")
             return {'scheduler_partner': {'success': 0, 'message': 'Out of ratio'}}
 
-        if (req_vcpus > usable_cpu) and (req_memory > usable_memory):
+        if (req_vcpus <= usable_cpu) and (req_memory <= usable_memory):
             print("ACCEPTED")
             return {'scheduler_partner': {'success': 1, 'message': 'ACCEPTED'}}
         else:
