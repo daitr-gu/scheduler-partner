@@ -20,6 +20,7 @@ from nova.api.openstack import xmlutil
 import nova.db.api as DbAPI
 from pprint import pprint
 from nova import compute
+from nova.compute import flavors
 
 authorize = extensions.extension_authorizer('compute', 'partner')
 
@@ -70,10 +71,22 @@ class PartnerController(object):
 
     @wsgi.serializers(xml=PartnerTemplate)
     def estimate(self, req, id, body=None):
+        flavor_id = body['flavor_id']
         num_instances = body['num_instances']
         context = req.environ['nova.context']
         compute_nodes = self.host_api.compute_node_get_all(context)
-        pprint(compute_nodes)
+        usable_cpu = 0
+        usable_memory = 0
+
+        for hyp in compute_nodes:
+            usable_cpu += hyp['vcpus']
+            usable_cpu -= hyp['vcpus_used']
+
+            usable_memory += hyp['memory_mb']
+            usable_memory -= hyp['memory_mb_used']
+
+        flavor = flavors.get_flavor_by_flavor_id(flavor_id, ctxt=context)
+        pprint(flavor)
 
     @wsgi.serializers(xml=PartnerTemplate)
     def create(self, req, body=None):
