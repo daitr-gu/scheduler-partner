@@ -74,25 +74,47 @@ class PartnerController(object):
         flavor_id = body['flavor_id']
         num_instances = body['num_instances']
         context = req.environ['nova.context']
+
         compute_nodes = self.host_api.compute_node_get_all(context)
+        total_cpu = 0
         usable_cpu = 0
         usable_memory = 0
 
         for hyp in compute_nodes:
-            usable_cpu += hyp['vcpus']
-            usable_cpu -= hyp['vcpus_used']
+            total_cpu += hyp['vcpus']
+            usable_cpu = total_cpu - hyp['vcpus_used']
 
             usable_memory += hyp['memory_mb']
             usable_memory -= hyp['memory_mb_used']
 
         flavor = flavors.get_flavor_by_flavor_id(flavor_id, ctxt=context)
-        pprint(flavor)
+        req_vcpus = flavor.vcpus * num_instances
+        req_memory = flavor.memory_mb * num_instances
+
+        partner = DbAPI.partners_get_by_shortname(context, id)
+        if not self._is_can_satisfy(partner, flavor, total_cpu, num_instances):
+            return {'scheduler_partner': {'success': 0, 'message': 'Out of ratio'}}
+
+        if (req_vcpus > usable_cpu) and (req_memory > usable_memory):
+            return {'scheduler_partner': {'success': 1, 'message': 'ACCEPTED'}}
+        else:
+            return {'scheduler_partner': {'success': 0, 'message': 'Out of resources'}}
 
     @wsgi.serializers(xml=PartnerTemplate)
     def create(self, req, body=None):
         context = req.environ['nova.context']
         compute_nodes = self.host_api.compute_node_get_all(context)
         pprint(compute_nodes)
+
+    def _is_can_satisfy(self, partner, flavor, total_cpu, num_instances):
+        requested = partner['requested']
+        satisfied = partner['satisfied']
+        ratio = partner['ratio']
+
+        max_satisfiable = requested / ratio * total_cpu
+        can_satisfy = max_satisfiable - satisfied
+
+        return flavor.vcpus * num_instances > can_satisfy
 
 
 class Scheduler_partner(extensions.ExtensionDescriptor):
