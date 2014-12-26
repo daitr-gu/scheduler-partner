@@ -122,7 +122,7 @@ class PartnerController(object):
         max_satisfiable = requested / ratio * total_cpu
         can_satisfy = max_satisfiable - satisfied
 
-        return flavor.vcpus * num_instances < can_satisfy
+        return flavor.vcpus * num_instances <= can_satisfy
 
 
 class Scheduler_partner(extensions.ExtensionDescriptor):
