@@ -13,6 +13,7 @@
 #    under the License.
 
 import webob.exc
+from webob import exc
 
 from nova.api.openstack import extensions
 from nova.api.openstack import wsgi
@@ -21,6 +22,10 @@ import nova.db.api as DbAPI
 from pprint import pprint
 from nova import compute
 from nova.compute import flavors
+from nova import exception
+from nova.i18n import _
+from oslo import messaging
+
 
 authorize = extensions.extension_authorizer('compute', 'partner')
 
@@ -40,6 +45,7 @@ class PartnerController(object):
     def __init__(self):
         print "INIT PARTNER CONTROLLER"
         self.host_api = compute.HostAPI()
+        self.compute_api = compute.API()
 
     def index(self, req):
         """Test new extension."""
@@ -76,6 +82,121 @@ class PartnerController(object):
         DbAPI.partners_update(context, id, {
             'satisfied': satisfied + num_instances
         })
+
+        name = body['name']
+        password = "1234567890"
+        image_uuid = ""
+
+        injected_files = []
+        config_drive = None
+
+        sg_names = []
+        sg_names.append("default")
+        sg_names = list(set(sg_names))
+
+        requested_networks = None
+        access_ip_v6 = None
+        access_ip_v4 = None
+
+        key_name = None
+        user_data = None
+
+        availability_zone = None
+        block_device_mapping = []
+        block_device_mapping_v2 = []
+        legacy_bdm = not bool(block_device_mapping_v2)
+
+        block_device_mapping = (block_device_mapping or block_device_mapping_v2)
+        min_count = num_instances
+        max_count = num_instances
+
+        auto_disk_config = True
+        scheduler_hints = {}
+
+        try:
+            _get_inst_type = flavors.get_flavor_by_flavor_id
+            inst_type = _get_inst_type(flavor_id, ctxt=context,
+                                       read_deleted="no")
+
+            (instances, resv_id) = self.compute_api.create(context,
+                        inst_type,
+                        image_uuid,
+                        display_name=name,
+                        display_description=name,
+                        key_name=key_name,
+                        metadata={},
+                        access_ip_v4=access_ip_v4,
+                        access_ip_v6=access_ip_v6,
+                        injected_files=injected_files,
+                        admin_password=password,
+                        min_count=min_count,
+                        max_count=max_count,
+                        requested_networks=requested_networks,
+                        security_group=sg_names,
+                        user_data=user_data,
+                        availability_zone=availability_zone,
+                        config_drive=config_drive,
+                        block_device_mapping=block_device_mapping,
+                        auto_disk_config=auto_disk_config,
+                        scheduler_hints=scheduler_hints,
+                        legacy_bdm=legacy_bdm,
+                        check_server_group_quota=False)
+        except (exception.QuotaError,
+                exception.PortLimitExceeded) as error:
+            raise exc.HTTPForbidden(
+                explanation=error.format_message(),
+                headers={'Retry-After': 0})
+        except exception.InvalidMetadataSize as error:
+            raise exc.HTTPRequestEntityTooLarge(
+                explanation=error.format_message())
+        except exception.ImageNotFound as error:
+            msg = _("Can not find requested image")
+            raise exc.HTTPBadRequest(explanation=msg)
+        except exception.FlavorNotFound as error:
+            msg = _("Invalid flavorRef provided.")
+            raise exc.HTTPBadRequest(explanation=msg)
+        except exception.KeypairNotFound as error:
+            msg = _("Invalid key_name provided.")
+            raise exc.HTTPBadRequest(explanation=msg)
+        except exception.ConfigDriveInvalidValue:
+            msg = _("Invalid config_drive provided.")
+            raise exc.HTTPBadRequest(explanation=msg)
+        except messaging.RemoteError as err:
+            msg = "%(err_type)s: %(err_msg)s" % {'err_type': err.exc_type,
+                                                 'err_msg': err.value}
+            raise exc.HTTPBadRequest(explanation=msg)
+        except UnicodeDecodeError as error:
+            msg = "UnicodeError: %s" % error
+            raise exc.HTTPBadRequest(explanation=msg)
+        except (exception.ImageNotActive,
+                exception.FlavorDiskTooSmall,
+                exception.FlavorMemoryTooSmall,
+                exception.NetworkNotFound,
+                exception.PortNotFound,
+                exception.FixedIpAlreadyInUse,
+                exception.SecurityGroupNotFound,
+                exception.InstanceUserDataTooLarge,
+                exception.InstanceUserDataMalformed) as error:
+            raise exc.HTTPBadRequest(explanation=error.format_message())
+        except (exception.ImageNUMATopologyIncomplete,
+                exception.ImageNUMATopologyForbidden,
+                exception.ImageNUMATopologyAsymmetric,
+                exception.ImageNUMATopologyCPUOutOfRange,
+                exception.ImageNUMATopologyCPUDuplicates,
+                exception.ImageNUMATopologyCPUsUnassigned,
+                exception.ImageNUMATopologyMemoryOutOfRange) as error:
+            raise exc.HTTPBadRequest(explanation=error.format_message())
+        except (exception.PortInUse,
+                exception.InstanceExists,
+                exception.NoUniqueMatch) as error:
+            raise exc.HTTPConflict(explanation=error.format_message())
+        except exception.Invalid as error:
+            raise exc.HTTPBadRequest(explanation=error.format_message())
+
+        req.cache_db_instances(instances)
+        server = self._view_builder.create(req, instances[0])
+
+        server['server']['adminPass'] = "1234567890"
 
         print("Provisioning %s instances." % num_instances)
 
